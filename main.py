@@ -1,12 +1,28 @@
 import sys
 import random
+import math
 
 
 class Node:
-    def __init__(self, move, wi, ni):
+    def __init__(self, move, parent):
         self.move = move
-        self.wi = wi
-        self.ni = ni
+        self.parent = parent
+        self.wi = 0
+        self.ni = 0
+        self.children = {}
+
+    def add_children(self, children: dict) -> None:
+        for child in children:
+            self.children[child.move] = child
+
+    def value(self, explore: float = math.sqrt(2)):
+        if self.ni == 0:
+            # choose nodes that have not yet been explored
+            return 0 if explore == 0 else float("inf")
+        else:
+            return self.wi / self.ni + explore * math.sqrt(
+                math.log(self.parent.ni) / self.ni
+            )
 
 
 # Constants
@@ -40,44 +56,12 @@ def valid_moves(board):
     return [c for c in range(COLUMNS) if board[0][c] == EMPTY]
 
 
-# Helper function creates a list of the seven possible legal moves for the board
-# def create_valid_moves(board):
-#     valid_movs = []
-#     found_col = []
-#     for row in range(ROWS - 1, -1, -1):
-#         for col in range(COLUMNS - 1, -1, -1):
-#             if board[row][col] == EMPTY and col not in found_col:
-#                 valid_movs.append([row, col])
-#                 found_col.append(col)
-#                 pass
-#     return valid_movs
-
-
 # Helper function to make a move
 def make_move(board, column, player):
     for row in range(ROWS - 1, -1, -1):
         if board[row][column] == EMPTY:
             board[row][column] = player
             return row, column
-
-
-# Helper function to make a move, updates board and updates legal moves
-# def make_move(board, moves, player):
-#     selected = random.choice(moves)
-#     board[selected[0]][selected[1]] = player
-#     if (
-#         selected[0] == 0
-#     ):  # if rows == 0 then there are no more legal moves for that board column
-#         moves.remove(selected)
-#     else:
-#         pos = moves.index(selected)
-#         moves[pos][
-#             0
-#         ] -= 1  # updates the board row as new legal move, column stays the same
-#     return (
-#         moves,
-#         selected[1],
-#     )  # returns updated legal moves and the column of the selected move
 
 
 def check_winner(board, last_move):
@@ -128,6 +112,29 @@ def random_rollout(board, player):
         current_player = RED if current_player == YELLOW else YELLOW
 
 
+def uct_rollout(board, player, wi, ni, parent):
+    current_player = player
+    while True:
+        # print("hi")
+        if not valid_moves(board):
+            return 0  # Draw
+        move = (
+            ((wi[parent]) / ni[parent])
+            + math.sqrt(2) * math.sqrt(math.log(parent / ni[parent]))
+            if ni[parent] > 0
+            else random.choice(valid_moves(board))
+        )
+        # max(
+        # range(COLUMNS), key=lambda c: ((wi[c] / ni[c]) + math.sqrt(2) * math.sqrt(math.log(parent)/ni[c])) if ni[c] > 0 else random.choice(valid_moves(board))
+        # )
+        row, col = make_move(board, move, current_player)
+
+        winner = check_winner(board, (row, col))
+        if winner is not None:
+            return winner
+        current_player = RED if current_player == YELLOW else YELLOW
+
+
 # Algorithm 1: Uniform Random (UR)
 def uniform_random(board, player, output):
 
@@ -137,17 +144,20 @@ def uniform_random(board, player, output):
         print("No valid moves available.")
         return None
 
+    selected_move = random.choice(moves)
+
     if output == "Verbose":
         print("Initial board:")
         print_board(board)
 
-    moves, selected_move = make_move(board, moves, player)
+    make_move(board, selected_move, player)
 
     print(f"FINAL Move selected: {selected_move + 1}")
 
     if output != "None":
         print("Final board state:")
         print_board(board)
+    return selected_move
 
 
 # Algorithm 2: Pure Monte Carlo Game Search (PMCGS)
@@ -205,7 +215,101 @@ def pmcgs(board, player, simulations, output="None"):
 
 # Algorithm 3: Upper Confidence Bound for Trees (UCT)
 def uct(board, player, simulations, output):
-    pass
+    # wi and ni track the number of wins and the number of simulations for each column
+    wi = [0] * COLUMNS  # Wins for each column
+    ni = [0] * COLUMNS  # Number of simulations for each column
+
+    for sim in range(simulations):
+        if output == "Verbose":
+            print(f"Simulation {sim + 1}")
+
+        for col in valid_moves(board):
+            new_board = [row[:] for row in board]
+            make_move(new_board, col, player)
+            result = random_rollout(new_board, player)
+            ni[col] += 1
+            wi[col] += result
+
+        # UCB values calculations
+        ucb_values = [
+            (
+                wi[i] / ni[i] + math.sqrt(2 * math.log(sim + 1) / ni[i])
+                if ni[i] > 0
+                else float("inf")
+            )
+            for i in range(COLUMNS)
+        ]
+        selected_move = ucb_values.index(max(ucb_values))
+
+    for col, ucb in enumerate(ucb_values):
+        print(f"Column {col + 1}: {ucb}")
+
+    print(f"FINAL Move selected: {selected_move + 1}")
+    return selected_move
+
+
+def tournament(board, players, output):
+    playerWins = 0
+    player2Wins = 0
+    draws = 0
+    # keeps track of the player combinations seen
+    seen = []
+    for player in players:
+        for player2 in players:
+            if seen.count(player + player2) > 0:
+                continue
+            if seen.count(player2 + player) > 0:
+                continue
+            seen.append(player + player2)
+            seen.append(player2 + player)
+            for sim in range(100):
+                curr_board = [row[:] for row in board]
+                winner = play(curr_board, player, player2, simulations, output)
+                if winner == player:
+                    playerWins += 1
+                elif winner == player2:
+                    player2Wins += 1
+                else:
+                    draws += 1
+            print(
+                player
+                + " had "
+                + str(playerWins)
+                + " wins against "
+                + player2
+                + " who had "
+                + str(player2Wins)
+                + " wins"
+            )
+            print("There were " + str(draws) + " draws")
+            playerWins = 0
+            player2Wins = 0
+            draws = 0
+
+
+def play(board, player, player2, simulations, output):
+    curr = player
+    color = RED
+    move = 0
+    winner = None
+    while True:
+        if curr == "UR":
+            move = uniform_random(board, color, output)
+        elif curr == "PMCGS(500)":
+            move = pmcgs(board, color, 1, output)  # 500
+        elif curr == "PMCGS(10000)":
+            move = pmcgs(board, color, 1, output)  # 10000
+        elif curr == "UCT(500)":
+            move = uct(board, color, 1, output)  # 500
+        else:
+            move = uct(board, color, 1, output)  # 10000
+        if move is None:
+            print("Draw")
+            return 0
+        if winner is not None:
+            return winner
+        curr = player2 if curr == player else player
+        color = YELLOW if color == RED else RED
 
 
 if __name__ == "__main__":
@@ -217,6 +321,8 @@ if __name__ == "__main__":
     output_mode = sys.argv[2]
     simulations = int(sys.argv[3])
 
+    tournament_experiment_mode = True
+
     algorithm, player, board = read_board_from_file(input_file)
     if algorithm == "UR":
         uniform_random(
@@ -225,11 +331,12 @@ if __name__ == "__main__":
     elif algorithm == "PMCGS":
         pmcgs(board, player, simulations, output_mode)
     elif algorithm == "UCT":
-        print(
-            f"Upper Confidence bound for Trees: {output_mode} with {simulations} simulations"
-        )
-        print("Board:")
-        print_board(board)
+        uct(board, player, simulations, output_mode)
     else:
         print(f"Unknown algorithm: {algorithm}")
         sys.exit(1)
+
+    if tournament_experiment_mode:
+        print("Round Robin Tournament")
+        players = ["UR", "PMCGS(500)", "PMCGS(10000)", "UCT(500)", "UCT(10000)"]
+        tournament(board, players, "None")
