@@ -89,28 +89,52 @@ def random_rollout(board, player):
             return winner
         current_player = RED if current_player == YELLOW else YELLOW
 
+def check_move_score(board, move):
+    row, col = move
+    player = board[row][col]
 
-def uct_rollout(board, player, wi, ni, parent):
+    # Direction vectors for (dx, dy) moves: horizontal, vertical, and two diagonals
+    directions = [(0, 1), (1, 0), (1, 1), (1, -1)]
+
+    def count_in_direction(dx, dy):
+        """Counts consecutive pieces in a given direction (dx, dy) starting from (row, col)."""
+        count = 0
+        r, c = row, col
+        while 0 <= r < ROWS and 0 <= c < COLUMNS and board[r][c] == player:
+            count += 1
+            r += dx
+            c += dy
+        return count
+
+    for dx, dy in directions:
+        # Count pieces in both directions from the last move (including the last move itself)
+        total_count = count_in_direction(dx, dy) + count_in_direction(-dx, -dy) - 1
+
+    return total_count
+
+# heuristic to prioritize moves based on more likely to win states
+def priority_rollout(board, player):
     current_player = player
+    best_move = 0
+    best_score = float('-inf')
     while True:
-        # print("hi")
         if not valid_moves(board):
-            return 0  # Draw
-        move = (
-            ((wi[parent]) / ni[parent])
-            + math.sqrt(2) * math.sqrt(math.log(parent / ni[parent]))
-            if ni[parent] > 0
-            else random.choice(valid_moves(board))
-        )
-        # max(
-        # range(COLUMNS), key=lambda c: ((wi[c] / ni[c]) + math.sqrt(2) * math.sqrt(math.log(parent)/ni[c])) if ni[c] > 0 else random.choice(valid_moves(board))
-        # )
-        row, col = make_move(board, move, current_player)
-
-        winner = check_winner(board, (row, col))
+           return 0 #Draw
+        for move in valid_moves(board):
+            temp_board = [row[:] for row in board]
+            row, col = make_move(temp_board, move, current_player)
+            score = check_move_score(temp_board, (row, col))
+            if score < best_score:
+                best_score = score
+                best_move = move
+            else:
+                best_move = random.choice(valid_moves(board))
+        last_row, last_col = make_move(board, best_move, current_player)
+        winner = check_winner(board, (last_row, last_col))
         if winner is not None:
             return winner
         current_player = RED if current_player == YELLOW else YELLOW
+
 
 
 # Algorithm 1: Uniform Random (UR)
@@ -205,9 +229,11 @@ def uct(board, player, simulations, output):
         for col in valid_moves(board):
             new_board = [row[:] for row in board]
             make_move(new_board, col, player)
-            result = random_rollout(new_board, player)
+            result = priority_rollout(new_board, player)
             ni[col] += 1
             wi[col] += result
+            if output == "Verbose":
+                print(f"wi: {wi[col]}\nni: {ni[col]}\nMove selected: {col + 1}\n")
 
         # UCB values calculations
         ucb_values = [
@@ -219,11 +245,13 @@ def uct(board, player, simulations, output):
             for i in range(COLUMNS)
         ]
         selected_move = ucb_values.index(max(ucb_values))
+        if output == "Verbose":
+            print("NODE ADDED\n")
 
     if output == "Verbose":
         for col, ucb in enumerate(ucb_values):
             print(f"Column {col + 1}: {ucb}")
-    if output == "Verbose" or "Brief":
+    if output != "None":
         print(f"FINAL Move selected: {selected_move + 1}")
     return selected_move
 
@@ -260,7 +288,7 @@ def play_human_player(board):
             print("Draw")
             break
         print("Computer is thinking...")
-        computer_move = pmcgs(board, YELLOW, 100, "None") #uses uct to decide the computer move
+        computer_move = uct(board, YELLOW, 100, "None") #uses uct to decide the computer move
         print(f"Computer chose move: {computer_move+1}")
         board, winner = player_helper(board, computer_move, YELLOW)
         #check if computer player has made winning move
