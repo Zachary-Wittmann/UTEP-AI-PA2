@@ -3,28 +3,6 @@ import random
 import math
 
 
-class Node:
-    def __init__(self, move, parent):
-        self.move = move
-        self.parent = parent
-        self.wi = 0
-        self.ni = 0
-        self.children = {}
-
-    def add_children(self, children: dict) -> None:
-        for child in children:
-            self.children[child.move] = child
-
-    def value(self, explore: float = math.sqrt(2)):
-        if self.ni == 0:
-            # choose nodes that have not yet been explored
-            return 0 if explore == 0 else float("inf")
-        else:
-            return self.wi / self.ni + explore * math.sqrt(
-                math.log(self.parent.ni) / self.ni
-            )
-
-
 # Constants
 ROWS = 6
 COLUMNS = 7
@@ -209,7 +187,8 @@ def pmcgs(board, player, simulations, output="None"):
         range(COLUMNS), key=lambda c: (wi[c] / ni[c]) if ni[c] > 0 else float("-inf")
     )
 
-    print(f"FINAL Move selected: {best_move + 1}")
+    if output == "Verbose":
+        print(f"FINAL Move selected: {best_move + 1}")
     return best_move
 
 
@@ -241,12 +220,54 @@ def uct(board, player, simulations, output):
         ]
         selected_move = ucb_values.index(max(ucb_values))
 
-    for col, ucb in enumerate(ucb_values):
-        print(f"Column {col + 1}: {ucb}")
-
-    print(f"FINAL Move selected: {selected_move + 1}")
+    if output == "Verbose":
+        for col, ucb in enumerate(ucb_values):
+            print(f"Column {col + 1}: {ucb}")
+    if output == "Verbose" or "Brief":
+        print(f"FINAL Move selected: {selected_move + 1}")
     return selected_move
 
+def player_helper(board, move, player):
+    row, col = make_move(board, move, player)
+    win_check = check_winner(board, (row, col))
+    return board, win_check
+
+
+def play_human_player(board):
+    winner = False
+    print("Human player: R, Computer player: Y")
+    while True:
+        moves = valid_moves(board)
+        if not valid_moves(board):
+            print("Draw")
+            break
+        print("Current Board:")
+        print_board(board)
+        #human player move
+        player_move = int(input("Enter a move(1-7): "))
+        while player_move-1 not in moves:
+            print("Illegal move chosen")
+            player_move = int(input("Enter a move(1-7): "))
+        board, winner = player_helper(board, player_move-1, RED)
+        #check if human player has made winning move
+        if winner:
+            print_board(board)
+            print("RED WINS")
+            break
+        #start of computer move
+        moves = valid_moves(board)
+        if not valid_moves(board):
+            print("Draw")
+            break
+        print("Computer is thinking...")
+        computer_move = pmcgs(board, YELLOW, 100, "None") #uses uct to decide the computer move
+        print(f"Computer chose move: {computer_move+1}")
+        board, winner = player_helper(board, computer_move, YELLOW)
+        #check if computer player has made winning move
+        if winner:
+            print_board(board)
+            print("YELLOW WINS")
+            break
 
 def tournament(board, players, output):
     playerWins = 0
@@ -332,6 +353,9 @@ if __name__ == "__main__":
         pmcgs(board, player, simulations, output_mode)
     elif algorithm == "UCT":
         uct(board, player, simulations, output_mode)
+    elif algorithm == "HUMAN":
+        play_human_player(board)
+        #ignores the player, simulations and output_mode. starts with an empty board
     else:
         print(f"Unknown algorithm: {algorithm}")
         sys.exit(1)
