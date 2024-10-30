@@ -265,23 +265,27 @@ def play_human_player(board):
         print_board(board)
         #human player move
         player_move = int(input("Enter a move: "))
-        while player_move not in moves:
+        while player_move-1 not in moves:
             print("Illegal move chosen")
             player_move = int(input("Enter a move: "))
-        board, winner = player_helper(board, player_move, RED)
+        board, winner = player_helper(board, player_move-1, RED)
         #check if human player has made winning move
         if winner:
-            print(board)
+            print_board(board)
             print("RED WINS")
             break
         #start of computer move
+        moves = valid_moves(board)
+        if not valid_moves(board):
+            print("Draw")
+            break
         print("Computer is thinking...")
-        computer_move = uct(board, YELLOW, 10, "None") #uses uct to decide the computer move
+        computer_move = pmcgs(board, YELLOW, 100, "None") #uses uct to decide the computer move
         print(f"Computer chose move: {computer_move}")
         board, winner = player_helper(board, computer_move, YELLOW)
         #check if computer player has made winning move
         if winner:
-            print(board)
+            print_board(board)
             print("YELLOW WINS")
             break
 
