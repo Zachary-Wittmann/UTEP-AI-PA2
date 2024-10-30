@@ -208,7 +208,7 @@ def pmcgs(board, player, simulations, output="None"):
     best_move = max(
         range(COLUMNS), key=lambda c: (wi[c] / ni[c]) if ni[c] > 0 else float("-inf")
     )
-    if output == "Verbose" or "Brief":
+    if output == "Verbose":
         print(f"FINAL Move selected: {best_move + 1}")
     return best_move
 
@@ -264,10 +264,10 @@ def play_human_player(board):
         print("Current Board:")
         print_board(board)
         #human player move
-        player_move = int(input("Enter a move: "))
+        player_move = int(input("Enter a move(1-7): "))
         while player_move-1 not in moves:
             print("Illegal move chosen")
-            player_move = int(input("Enter a move: "))
+            player_move = int(input("Enter a move(1-7): "))
         board, winner = player_helper(board, player_move-1, RED)
         #check if human player has made winning move
         if winner:
