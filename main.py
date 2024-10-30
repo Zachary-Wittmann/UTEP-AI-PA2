@@ -62,6 +62,7 @@ def make_move(board, column, player):
         if board[row][column] == EMPTY:
             board[row][column] = player
             return row, column
+    return None
 
 
 def check_winner(board, last_move):
@@ -112,7 +113,7 @@ def random_rollout(board, player):
         current_player = RED if current_player == YELLOW else YELLOW
 
 def check_move_score(board, move):
-    row, col = last_move
+    row, col = move
     player = board[row][col]
 
     # Direction vectors for (dx, dy) moves: horizontal, vertical, and two diagonals
@@ -141,7 +142,7 @@ def priority_rollout(board, player):
     best_move = None
     best_score = float('-inf')
     while True:
-        if not valid_moves(board)
+        if not valid_moves(board):
            return 0
         for move in valid_moves(board):
             temp_board = [row[:] for row in board]
@@ -311,9 +312,9 @@ def tournament(board, players, output):
             for sim in range(100):
                 curr_board = [row[:] for row in board]
                 winner = play(curr_board, player, player2, simulations, output)
-                if winner == player:
+                if winner == 1:
                     playerWins += 1
-                elif winner == player2:
+                elif winner == -1:
                     player2Wins += 1
                 else:
                     draws += 1
@@ -336,24 +337,33 @@ def tournament(board, players, output):
 def play(board, player, player2, simulations, output):
     curr = player
     color = RED
-    move = 0
-    winner = None
     while True:
         if curr == "UR":
             move = uniform_random(board, color, output)
         elif curr == "PMCGS(500)":
-            move = pmcgs(board, color, 1, output)  # 500
+            move = pmcgs(board, color, 5, output)
         elif curr == "PMCGS(10000)":
-            move = pmcgs(board, color, 1, output)  # 10000
+            move = pmcgs(board, color, 100, output)
         elif curr == "UCT(500)":
-            move = uct(board, color, 1, output)  # 500
-        else:
-            move = uct(board, color, 1, output)  # 10000
+            move = uct(board, color, 5, output)
+        elif curr == "UCT(10000)":
+            move = uct(board, color, 100, output)
+
         if move is None:
-            print("Draw")
-            return 0
+            print("No valid moves left. Draw.")
+            return 0  # Indicate a draw
+
+        result = make_move(board, move, color)  
+        if result is None:
+            print("Invalid move")
+            return 0  # Indicate a draw
+
+        row, col = result
+        winner = check_winner(board, (row, col))
+
         if winner is not None:
             return winner
+
         curr = player2 if curr == player else player
         color = YELLOW if color == RED else RED
 
