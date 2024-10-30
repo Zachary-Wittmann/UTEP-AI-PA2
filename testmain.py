@@ -281,7 +281,7 @@ def play_human_player(board):
             break
         print("Computer is thinking...")
         computer_move = pmcgs(board, YELLOW, 100, "None") #uses uct to decide the computer move
-        print(f"Computer chose move: {computer_move}")
+        print(f"Computer chose move: {computer_move+1}")
         board, winner = player_helper(board, computer_move, YELLOW)
         #check if computer player has made winning move
         if winner:
