@@ -111,6 +111,52 @@ def random_rollout(board, player):
             return winner
         current_player = RED if current_player == YELLOW else YELLOW
 
+def check_move_score(board, move):
+    row, col = last_move
+    player = board[row][col]
+
+    # Direction vectors for (dx, dy) moves: horizontal, vertical, and two diagonals
+    directions = [(0, 1), (1, 0), (1, 1), (1, -1)]
+
+    def count_in_direction(dx, dy):
+        """Counts consecutive pieces in a given direction (dx, dy) starting from (row, col)."""
+        count = 0
+        r, c = row, col
+        while 0 <= r < ROWS and 0 <= c < COLUMNS and board[r][c] == player:
+            count += 1
+            r += dx
+            c += dy
+        return count
+
+    for dx, dy in directions:
+        # Count pieces in both directions from the last move (including the last move itself)
+        total_count = count_in_direction(dx, dy) + count_in_direction(-dx, -dy) - 1
+
+    return total_count
+
+
+# heuristic to prioritize moves based on more likely to win states
+def priority_rollout(board, player):
+    current_player = player
+    best_move = None
+    best_score = float('-inf')
+    while True:
+        if not valid_moves(board)
+           return 0
+        for move in valid_moves(board):
+            temp_board = [row[:] for row in board]
+            make_move(temp_board, move, current_player)
+            score = check_move_score(temp_board, move)
+            if score > best_score:
+                best_score = score
+                best_move = move
+        make_move(board, best_move, current_player)
+        winner = check_winner(board, best_move)
+        if winner is not None:
+            return winner
+        current_player = RED if current_player == YELLOW else YELLOW
+
+
 
 def uct_rollout(board, player, wi, ni, parent):
     current_player = player
