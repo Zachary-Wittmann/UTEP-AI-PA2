@@ -139,15 +139,15 @@ def check_move_score(board, move):
 # heuristic to prioritize moves based on more likely to win states
 def priority_rollout(board, player):
     current_player = player
-    best_move = None
+    best_move = (0,0)
     best_score = float('-inf')
     while True:
         if not valid_moves(board):
-           return 0
+           return 0 #Draw
         for move in valid_moves(board):
             temp_board = [row[:] for row in board]
-            make_move(temp_board, move, current_player)
-            score = check_move_score(temp_board, move)
+            row, col = make_move(temp_board, move, current_player)
+            score = check_move_score(temp_board, (row, col))
             if score > best_score:
                 best_score = score
                 best_move = move
@@ -301,37 +301,31 @@ def tournament(board, players, output):
     draws = 0
     # keeps track of the player combinations seen
     seen = []
-    for player in players:
-        for player2 in players:
-            if seen.count(player + player2) > 0:
-                continue
-            if seen.count(player2 + player) > 0:
-                continue
-            seen.append(player + player2)
-            seen.append(player2 + player)
-            for sim in range(100):
-                curr_board = [row[:] for row in board]
-                winner = play(curr_board, player, player2, simulations, output)
-                if winner == 1:
-                    playerWins += 1
-                elif winner == -1:
-                    player2Wins += 1
-                else:
-                    draws += 1
-            print(
-                player
-                + " had "
-                + str(playerWins)
-                + " wins against "
-                + player2
-                + " who had "
-                + str(player2Wins)
-                + " wins"
-            )
-            print("There were " + str(draws) + " draws")
-            playerWins = 0
-            player2Wins = 0
-            draws = 0
+    with open("tournament_results_easy.txt", "w") as result_file:
+        for player in players:
+            for player2 in players:
+                if seen.count(player + player2) > 0:
+                    continue
+                if seen.count(player2 + player) > 0:
+                    continue
+                seen.append(player + player2)
+                seen.append(player2 + player)
+                for sim in range(100):
+                    curr_board = [row[:] for row in board]
+                    winner = play(curr_board, player, player2, simulations, output)
+                    if winner == 1:
+                        playerWins += 1
+                    elif winner == -1:
+                        player2Wins += 1
+                    else:
+                        draws += 1
+                result_file.write(
+                    f"{player} had {playerWins} wins against {player2} who had {player2Wins} wins\n"
+                )
+                result_file.write(f"There were {draws} draws\n")
+                playerWins = 0
+                player2Wins = 0
+                draws = 0
 
 
 def play(board, player, player2, simulations, output):
@@ -350,13 +344,13 @@ def play(board, player, player2, simulations, output):
             move = uct(board, color, 100, output)
 
         if move is None:
-            print("No valid moves left. Draw.")
-            return 0  # Indicate a draw
+            print("Draw")
+            return 0  
 
         result = make_move(board, move, color)  
         if result is None:
             print("Invalid move")
-            return 0  # Indicate a draw
+            return 0
 
         row, col = result
         winner = check_winner(board, (row, col))
@@ -369,17 +363,27 @@ def play(board, player, player2, simulations, output):
 
 
 if __name__ == "__main__":
+    tournament_experiment_mode = False
+
     if len(sys.argv) != 4:
-        print("Usage: python <script> <input_file> <output_mode> <simulations>")
-        sys.exit(1)
+        if len(sys.argv) == 5:
+            tournament_experiment_mode = True
+        else:    
+            print("Usage: python <script> <input_file> <output_mode> <simulations>")
+            sys.exit(1)
 
     input_file = sys.argv[1]
     output_mode = sys.argv[2]
     simulations = int(sys.argv[3])
 
-    tournament_experiment_mode = True
-
     algorithm, player, board = read_board_from_file(input_file)
+
+    if tournament_experiment_mode:
+        print("Round Robin Tournament")
+        players = ["UR", "PMCGS(500)", "PMCGS(10000)", "UCT(500)", "UCT(10000)"]
+        tournament(board, players, "None")
+        sys.exit(1)
+
     if algorithm == "UR":
         uniform_random(
             board, player, output_mode
@@ -391,8 +395,3 @@ if __name__ == "__main__":
     else:
         print(f"Unknown algorithm: {algorithm}")
         sys.exit(1)
-
-    if tournament_experiment_mode:
-        print("Round Robin Tournament")
-        players = ["UR", "PMCGS(500)", "PMCGS(10000)", "UCT(500)", "UCT(10000)"]
-        tournament(board, players, "None")

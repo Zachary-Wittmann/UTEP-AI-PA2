@@ -1,0 +1,30 @@
+UR had 80 wins against UR who had 18 wins
+There were 2 draws
+UR had 10 wins against PMCGS(500) who had 54 wins
+There were 36 draws
+UR had 10 wins against PMCGS(10000) who had 37 wins
+There were 53 draws
+UR had 2 wins against UCT(500) who had 31 wins
+There were 67 draws
+UR had 1 wins against UCT(10000) who had 27 wins
+There were 72 draws
+PMCGS(500) had 100 wins against PMCGS(500) who had 0 wins
+There were 0 draws
+PMCGS(500) had 100 wins against PMCGS(10000) who had 0 wins
+There were 0 draws
+PMCGS(500) had 7 wins against UCT(500) who had 0 wins
+There were 93 draws
+PMCGS(500) had 7 wins against UCT(10000) who had 0 wins
+There were 93 draws
+PMCGS(10000) had 100 wins against PMCGS(10000) who had 0 wins
+There were 0 draws
+PMCGS(10000) had 0 wins against UCT(500) who had 0 wins
+There were 100 draws
+PMCGS(10000) had 0 wins against UCT(10000) who had 0 wins
+There were 100 draws
+UCT(500) had 7 wins against UCT(500) who had 0 wins
+There were 93 draws
+UCT(500) had 5 wins against UCT(10000) who had 0 wins
+There were 95 draws
+UCT(10000) had 0 wins against UCT(10000) who had 0 wins
+There were 100 draws
