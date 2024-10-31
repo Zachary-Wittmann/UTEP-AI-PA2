@@ -185,7 +185,7 @@ def uniform_random(board, player, output):
 
 
 # Algorithm 2: Pure Monte Carlo Game Search (PMCGS)
-def pmcgs(board, player, simulations, output="None"):
+def pmcgs(board, player, simulations, output):
     # wi and ni track the number of wins and the number of simulations for each column
     wi = [0] * COLUMNS  # Wins for each column
     ni = [0] * COLUMNS  # Number of simulations for each column
@@ -220,7 +220,7 @@ def pmcgs(board, player, simulations, output="None"):
             print("NODE ADDED\n")  # Indicate a node addition
 
     # Print the final values for each column (wi/ni) or 'Null' for invalid moves
-    if output == "Verbose":
+    if output == "Verbose" or output == "Brief":
         for col in range(COLUMNS):
             if ni[col] == 0:  # No simulations for this column, means it's a full column
                 print(f"Column {col + 1}: Null")
@@ -233,8 +233,7 @@ def pmcgs(board, player, simulations, output="None"):
         range(COLUMNS), key=lambda c: (wi[c] / ni[c]) if ni[c] > 0 else float("-inf")
     )
 
-    if output == "Verbose":
-        print(f"FINAL Move selected: {best_move + 1}")
+    print(f"FINAL Move selected: {best_move + 1}")
     return best_move
 
 
@@ -270,11 +269,11 @@ def uct(board, player, simulations, output):
         if output == "Verbose":
             print("NODE ADDED\n")
 
-    if output == "Verbose":
+    if output == "Verbose" or output == "Brief":
         for col, ucb in enumerate(ucb_values):
             print(f"Column {col + 1}: {ucb}")
-    if output != "None":
-        print(f"FINAL Move selected: {selected_move + 1}")
+    
+    print(f"FINAL Move selected: {selected_move + 1}")
     return selected_move
 
 def player_helper(board, move, player):
@@ -422,4 +421,3 @@ if __name__ == "__main__":
     else:
         print(f"Unknown algorithm: {algorithm}")
         sys.exit(1)
-
