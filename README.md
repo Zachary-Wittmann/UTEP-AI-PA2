@@ -13,7 +13,7 @@ UCT: .\main.exe test3.txt <Verbose, Brief, None> <#>
 
 HUMAN V COMPUTER: .\main.exe humantest.txt <None> <#>
 
-TOURNAMENT: .\main.exe test2.txt <Verbose, Brief, None> <0> tournament
+TOURNAMENT: .\main.exe test2.txt <Verbose, Brief, None> <#> tournament
 
 HEURISTIC:
 If you'd like to run UCT with the priority rollout heuristic, set line 253 to "result = priority_rollout(new_board, player)".
