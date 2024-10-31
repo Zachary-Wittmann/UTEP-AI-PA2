@@ -3,28 +3,6 @@ import random
 import math
 
 
-class Node:
-    def __init__(self, move, parent):
-        self.move = move
-        self.parent = parent
-        self.wi = 0
-        self.ni = 0
-        self.children = {}
-
-    def add_children(self, children: dict) -> None:
-        for child in children:
-            self.children[child.move] = child
-
-    def value(self, explore: float = math.sqrt(2)):
-        if self.ni == 0:
-            # choose nodes that have not yet been explored
-            return 0 if explore == 0 else float("inf")
-        else:
-            return self.wi / self.ni + explore * math.sqrt(
-                math.log(self.parent.ni) / self.ni
-            )
-
-
 # Constants
 ROWS = 6
 COLUMNS = 7
@@ -62,7 +40,6 @@ def make_move(board, column, player):
         if board[row][column] == EMPTY:
             board[row][column] = player
             return row, column
-    return None
 
 
 def check_winner(board, last_move):
@@ -112,6 +89,28 @@ def random_rollout(board, player):
             return winner
         current_player = RED if current_player == YELLOW else YELLOW
 
+def uct_rollout(board, player, wi, ni, parent):
+    current_player = player
+    while True:
+        # print("hi")
+        if not valid_moves(board):
+            return 0  # Draw
+        move = (
+            ((wi[parent]) / ni[parent])
+            + math.sqrt(2) * math.sqrt(math.log(parent / ni[parent]))
+            if ni[parent] > 0
+            else random.choice(valid_moves(board))
+        )
+        # max(
+        # range(COLUMNS), key=lambda c: ((wi[c] / ni[c]) + math.sqrt(2) * math.sqrt(math.log(parent)/ni[c])) if ni[c] > 0 else random.choice(valid_moves(board))
+        # )
+        row, col = make_move(board, move, current_player)
+
+        winner = check_winner(board, (row, col))
+        if winner is not None:
+            return winner
+        current_player = RED if current_player == YELLOW else YELLOW
+
 def check_move_score(board, move):
     row, col = move
     player = board[row][col]
@@ -135,11 +134,10 @@ def check_move_score(board, move):
 
     return total_count
 
-
 # heuristic to prioritize moves based on more likely to win states
 def priority_rollout(board, player):
     current_player = player
-    best_move = (0,0)
+    best_move = 0
     best_score = float('-inf')
     while True:
         if not valid_moves(board):
@@ -148,38 +146,17 @@ def priority_rollout(board, player):
             temp_board = [row[:] for row in board]
             row, col = make_move(temp_board, move, current_player)
             score = check_move_score(temp_board, (row, col))
-            if score > best_score:
+            if score < best_score:
                 best_score = score
                 best_move = move
-        make_move(board, best_move, current_player)
-        winner = check_winner(board, best_move)
+            else:
+                best_move = random.choice(valid_moves(board))
+        last_row, last_col = make_move(board, best_move, current_player)
+        winner = check_winner(board, (last_row, last_col))
         if winner is not None:
             return winner
         current_player = RED if current_player == YELLOW else YELLOW
 
-
-
-def uct_rollout(board, player, wi, ni, parent):
-    current_player = player
-    while True:
-        # print("hi")
-        if not valid_moves(board):
-            return 0  # Draw
-        move = (
-            ((wi[parent]) / ni[parent])
-            + math.sqrt(2) * math.sqrt(math.log(parent / ni[parent]))
-            if ni[parent] > 0
-            else random.choice(valid_moves(board))
-        )
-        # max(
-        # range(COLUMNS), key=lambda c: ((wi[c] / ni[c]) + math.sqrt(2) * math.sqrt(math.log(parent)/ni[c])) if ni[c] > 0 else random.choice(valid_moves(board))
-        # )
-        row, col = make_move(board, move, current_player)
-
-        winner = check_winner(board, (row, col))
-        if winner is not None:
-            return winner
-        current_player = RED if current_player == YELLOW else YELLOW
 
 
 # Algorithm 1: Uniform Random (UR)
@@ -208,7 +185,7 @@ def uniform_random(board, player, output):
 
 
 # Algorithm 2: Pure Monte Carlo Game Search (PMCGS)
-def pmcgs(board, player, simulations, output="None"):
+def pmcgs(board, player, simulations, output):
     # wi and ni track the number of wins and the number of simulations for each column
     wi = [0] * COLUMNS  # Wins for each column
     ni = [0] * COLUMNS  # Number of simulations for each column
@@ -243,7 +220,7 @@ def pmcgs(board, player, simulations, output="None"):
             print("NODE ADDED\n")  # Indicate a node addition
 
     # Print the final values for each column (wi/ni) or 'Null' for invalid moves
-    if output == "Verbose":
+    if output == "Verbose" or output == "Brief":
         for col in range(COLUMNS):
             if ni[col] == 0:  # No simulations for this column, means it's a full column
                 print(f"Column {col + 1}: Null")
@@ -273,9 +250,11 @@ def uct(board, player, simulations, output):
         for col in valid_moves(board):
             new_board = [row[:] for row in board]
             make_move(new_board, col, player)
-            result = random_rollout(new_board, player)
+            result = priority_rollout(new_board, player)
             ni[col] += 1
             wi[col] += result
+            if output == "Verbose":
+                print(f"wi: {wi[col]}\nni: {ni[col]}\nMove selected: {col + 1}\n")
 
         # UCB values calculations
         ucb_values = [
@@ -287,13 +266,57 @@ def uct(board, player, simulations, output):
             for i in range(COLUMNS)
         ]
         selected_move = ucb_values.index(max(ucb_values))
+        if output == "Verbose":
+            print("NODE ADDED\n")
 
-    for col, ucb in enumerate(ucb_values):
-        print(f"Column {col + 1}: {ucb}")
-
+    if output == "Verbose" or output == "Brief":
+        for col, ucb in enumerate(ucb_values):
+            print(f"Column {col + 1}: {ucb}")
+    
     print(f"FINAL Move selected: {selected_move + 1}")
     return selected_move
 
+def player_helper(board, move, player):
+    row, col = make_move(board, move, player)
+    win_check = check_winner(board, (row, col))
+    return board, win_check
+
+
+def play_human_player(board):
+    winner = False
+    print("Human player: R, Computer player: Y")
+    while True:
+        moves = valid_moves(board)
+        if not valid_moves(board):
+            print("Draw")
+            break
+        print("Current Board:")
+        print_board(board)
+        #human player move
+        player_move = int(input("Enter a move(1-7): "))
+        while player_move-1 not in moves:
+            print("Illegal move chosen")
+            player_move = int(input("Enter a move(1-7): "))
+        board, winner = player_helper(board, player_move-1, RED)
+        #check if human player has made winning move
+        if winner:
+            print_board(board)
+            print("RED WINS")
+            break
+        #start of computer move
+        moves = valid_moves(board)
+        if not valid_moves(board):
+            print("Draw")
+            break
+        print("Computer is thinking...")
+        computer_move = pmcgs(board, YELLOW, 100, "None") #uses uct to decide the computer move
+        print(f"Computer chose move: {computer_move+1}")
+        board, winner = player_helper(board, computer_move, YELLOW)
+        #check if computer player has made winning move
+        if winner:
+            print_board(board)
+            print("YELLOW WINS")
+            break
 
 def tournament(board, players, output):
     playerWins = 0
@@ -392,6 +415,9 @@ if __name__ == "__main__":
         pmcgs(board, player, simulations, output_mode)
     elif algorithm == "UCT":
         uct(board, player, simulations, output_mode)
+    elif algorithm == "HUMAN":
+        play_human_player(board)
+        #ignores the player, simulations and output_mode. starts with an empty board
     else:
         print(f"Unknown algorithm: {algorithm}")
         sys.exit(1)
