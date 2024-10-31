@@ -250,7 +250,7 @@ def uct(board, player, simulations, output):
         for col in valid_moves(board):
             new_board = [row[:] for row in board]
             make_move(new_board, col, player)
-            result = priority_rollout(new_board, player)
+            result = random_rollout(new_board, player)
             ni[col] += 1
             wi[col] += result
             if output == "Verbose":
