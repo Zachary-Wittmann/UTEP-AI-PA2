@@ -89,6 +89,28 @@ def random_rollout(board, player):
             return winner
         current_player = RED if current_player == YELLOW else YELLOW
 
+def uct_rollout(board, player, wi, ni, parent):
+    current_player = player
+    while True:
+        # print("hi")
+        if not valid_moves(board):
+            return 0  # Draw
+        move = (
+            ((wi[parent]) / ni[parent])
+            + math.sqrt(2) * math.sqrt(math.log(parent / ni[parent]))
+            if ni[parent] > 0
+            else random.choice(valid_moves(board))
+        )
+        # max(
+        # range(COLUMNS), key=lambda c: ((wi[c] / ni[c]) + math.sqrt(2) * math.sqrt(math.log(parent)/ni[c])) if ni[c] > 0 else random.choice(valid_moves(board))
+        # )
+        row, col = make_move(board, move, current_player)
+
+        winner = check_winner(board, (row, col))
+        if winner is not None:
+            return winner
+        current_player = RED if current_player == YELLOW else YELLOW
+
 def check_move_score(board, move):
     row, col = move
     player = board[row][col]
@@ -303,76 +325,89 @@ def tournament(board, players, output):
     draws = 0
     # keeps track of the player combinations seen
     seen = []
-    for player in players:
-        for player2 in players:
-            if seen.count(player + player2) > 0:
-                continue
-            if seen.count(player2 + player) > 0:
-                continue
-            seen.append(player + player2)
-            seen.append(player2 + player)
-            for sim in range(100):
-                curr_board = [row[:] for row in board]
-                winner = play(curr_board, player, player2, simulations, output)
-                if winner == player:
-                    playerWins += 1
-                elif winner == player2:
-                    player2Wins += 1
-                else:
-                    draws += 1
-            print(
-                player
-                + " had "
-                + str(playerWins)
-                + " wins against "
-                + player2
-                + " who had "
-                + str(player2Wins)
-                + " wins"
-            )
-            print("There were " + str(draws) + " draws")
-            playerWins = 0
-            player2Wins = 0
-            draws = 0
+    with open("tournament_results_easy.txt", "w") as result_file:
+        for player in players:
+            for player2 in players:
+                if seen.count(player + player2) > 0:
+                    continue
+                if seen.count(player2 + player) > 0:
+                    continue
+                seen.append(player + player2)
+                seen.append(player2 + player)
+                for sim in range(100):
+                    curr_board = [row[:] for row in board]
+                    winner = play(curr_board, player, player2, simulations, output)
+                    if winner == 1:
+                        playerWins += 1
+                    elif winner == -1:
+                        player2Wins += 1
+                    else:
+                        draws += 1
+                result_file.write(
+                    f"{player} had {playerWins} wins against {player2} who had {player2Wins} wins\n"
+                )
+                result_file.write(f"There were {draws} draws\n")
+                playerWins = 0
+                player2Wins = 0
+                draws = 0
 
 
 def play(board, player, player2, simulations, output):
     curr = player
     color = RED
-    move = 0
-    winner = None
     while True:
         if curr == "UR":
             move = uniform_random(board, color, output)
         elif curr == "PMCGS(500)":
-            move = pmcgs(board, color, 1, output)  # 500
+            move = pmcgs(board, color, 5, output)
         elif curr == "PMCGS(10000)":
-            move = pmcgs(board, color, 1, output)  # 10000
+            move = pmcgs(board, color, 100, output)
         elif curr == "UCT(500)":
-            move = uct(board, color, 1, output)  # 500
-        else:
-            move = uct(board, color, 1, output)  # 10000
+            move = uct(board, color, 5, output)
+        elif curr == "UCT(10000)":
+            move = uct(board, color, 100, output)
+
         if move is None:
             print("Draw")
+            return 0  
+
+        result = make_move(board, move, color)  
+        if result is None:
+            print("Invalid move")
             return 0
+
+        row, col = result
+        winner = check_winner(board, (row, col))
+
         if winner is not None:
             return winner
+
         curr = player2 if curr == player else player
         color = YELLOW if color == RED else RED
 
 
 if __name__ == "__main__":
+    tournament_experiment_mode = False
+
     if len(sys.argv) != 4:
-        print("Usage: python <script> <input_file> <output_mode> <simulations>")
-        sys.exit(1)
+        if len(sys.argv) == 5:
+            tournament_experiment_mode = True
+        else:    
+            print("Usage: python <script> <input_file> <output_mode> <simulations>")
+            sys.exit(1)
 
     input_file = sys.argv[1]
     output_mode = sys.argv[2]
     simulations = int(sys.argv[3])
 
-    tournament_experiment_mode = True
-
     algorithm, player, board = read_board_from_file(input_file)
+
+    if tournament_experiment_mode:
+        print("Round Robin Tournament")
+        players = ["UR", "PMCGS(500)", "PMCGS(10000)", "UCT(500)", "UCT(10000)"]
+        tournament(board, players, "None")
+        sys.exit(1)
+
     if algorithm == "UR":
         uniform_random(
             board, player, output_mode
@@ -388,7 +423,3 @@ if __name__ == "__main__":
         print(f"Unknown algorithm: {algorithm}")
         sys.exit(1)
 
-    if tournament_experiment_mode:
-        print("Round Robin Tournament")
-        players = ["UR", "PMCGS(500)", "PMCGS(10000)", "UCT(500)", "UCT(10000)"]
-        tournament(board, players, "None")
